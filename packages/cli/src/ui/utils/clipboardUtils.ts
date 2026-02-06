@@ -29,9 +29,6 @@ export const IMAGE_EXTENSIONS = [
   '.heif',
 ];
 
-/** Matches strings that start with a path prefix (/, ~, ., Windows drive letter, or UNC path) */
-const PATH_PREFIX_PATTERN = /^([/~.]|[a-zA-Z]:|\\\\)/;
-
 // Track which tool works on Linux to avoid redundant checks/failures
 let linuxClipboardTool: 'wl-paste' | 'xclip' | null = null;
 
@@ -474,8 +471,12 @@ export function parsePastedPaths(
   text: string,
   isValidPath: (path: string) => boolean,
 ): string | null {
+  if (!text.trim()) {
+    return null;
+  }
+
   // First, check if the entire text is a single valid path
-  if (PATH_PREFIX_PATTERN.test(text) && isValidPath(text)) {
+  if (isValidPath(text)) {
     return `@${escapePath(text)} `;
   }
 
@@ -487,14 +488,10 @@ export function parsePastedPaths(
 
   let anyValidPath = false;
   const processedPaths = segments.map((segment) => {
-    // Quick rejection: skip segments that can't be paths
-    if (!PATH_PREFIX_PATTERN.test(segment)) {
-      return segment;
-    }
     const unescaped = unescapePath(segment);
     if (isValidPath(unescaped)) {
       anyValidPath = true;
-      return `@${segment}`;
+      return `@${escapePath(unescaped)}`;
     }
     return segment;
   });

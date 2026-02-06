@@ -23,7 +23,7 @@ export type HighlightToken = {
 // which contain colons. It matches any character except delimiters: comma, whitespace,
 // semicolon, common punctuation, and brackets.
 const HIGHLIGHT_REGEX = new RegExp(
-  `(^/[a-zA-Z0-9_-]+|@(?:\\\\ |[^,\\s;!?()\\[\\]{}])+|${PASTED_TEXT_PLACEHOLDER_REGEX.source})`,
+  `(^/[a-zA-Z0-9_-]+|@(?:\\\\\\s|[^,\\s;!?()\\[\\]{}])+|${PASTED_TEXT_PLACEHOLDER_REGEX.source})`,
   'g',
 );
 

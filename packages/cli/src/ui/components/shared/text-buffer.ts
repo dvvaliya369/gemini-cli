@@ -41,6 +41,9 @@ const LARGE_PASTE_CHAR_THRESHOLD = 500;
 export const PASTED_TEXT_PLACEHOLDER_REGEX =
   /\[Pasted Text: \d+ (?:lines|chars)(?: #\d+)?\]/g;
 
+/** Matches strings that start with a path prefix (/, ~, ., Windows drive letter, or UNC path) */
+export const PATH_PREFIX_PATTERN = /^([/~.]|[a-zA-Z]:|\\\\)/;
+
 export type Direction =
   | 'left'
   | 'right'
@@ -757,7 +760,7 @@ interface UseTextBufferProps {
   stdin?: NodeJS.ReadStream | null; // For external editor
   setRawMode?: (mode: boolean) => void; // For external editor
   onChange?: (text: string) => void; // Callback for when text changes
-  isValidPath: (path: string) => boolean;
+  resolvePaths?: boolean;
   shellModeActive?: boolean; // Whether the text buffer is in shell mode
   inputFilter?: (text: string) => string; // Optional filter for input text
   singleLine?: boolean;
@@ -2678,12 +2681,26 @@ export function useTextBuffer({
   stdin,
   setRawMode,
   onChange,
-  isValidPath,
+  resolvePaths = false,
   shellModeActive = false,
   inputFilter,
   singleLine = false,
   getPreferredEditor,
 }: UseTextBufferProps): TextBuffer {
+  const isValidPath = useCallback(
+    (filePath: string): boolean => {
+      if (!resolvePaths) return false;
+      // Quick rejection: skip strings that don't look like paths
+      if (!PATH_PREFIX_PATTERN.test(filePath)) return false;
+      try {
+        return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
+      } catch (_e) {
+        return false;
+      }
+    },
+    [resolvePaths],
+  );
+
   const initialState = useMemo((): TextBufferState => {
     const lines = initialText.split('\n');
     const [initialCursorRow, initialCursorCol] = calculateInitialCursorPosition(

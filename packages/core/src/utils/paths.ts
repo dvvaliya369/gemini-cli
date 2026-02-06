@@ -19,7 +19,7 @@ export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
  * Includes: spaces, parentheses, brackets, braces, semicolons, ampersands, pipes,
  * asterisks, question marks, dollar signs, backticks, quotes, hash, and other shell metacharacters.
  */
-export const SHELL_SPECIAL_CHARS = /[ \t()[\]{};|*?$`'"#&<>!~]/;
+export const SHELL_SPECIAL_CHARS = /[ \t\u202F()[\]{};|*?$`'"#&<>!~]/;
 
 /**
  * Returns the home directory.

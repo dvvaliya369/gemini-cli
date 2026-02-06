@@ -493,5 +493,15 @@ describe('clipboardUtils', () => {
       );
       expect(result).toBe('@\\\\server\\share\\file.txt ');
     });
+
+    it('should handle single path with unescaped narrow no-break space', () => {
+      const nnbs = '\u202F';
+      const filename = `Screenshot 2026-02-06 at 12.58.14${nnbs}PM.png`;
+      const result = parsePastedPaths(filename, (p) => p === filename);
+      // We expect the NNBSP to be escaped
+      expect(result).toBe(
+        `@Screenshot\\ 2026-02-06\\ at\\ 12.58.14\\${nnbs}PM.png `,
+      );
+    });
   });
 });
