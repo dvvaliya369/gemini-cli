@@ -257,6 +257,11 @@ describe('Policy Engine Integration Tests', () => {
         (await engine.check({ name: 'unknown_tool' }, undefined)).decision,
       ).toBe(PolicyDecision.ALLOW);
 
+      // ask_user should still require user interaction even in YOLO mode
+      expect(
+        (await engine.check({ name: 'ask_user' }, undefined)).decision,
+      ).toBe(PolicyDecision.ASK_USER);
+
       // But explicitly excluded tools should still be denied
       expect(
         (await engine.check({ name: 'dangerous-tool' }, undefined)).decision,

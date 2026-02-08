@@ -25,6 +25,17 @@
 #   50: Read-only tools (becomes 1.050 in default tier)
 #   999: YOLO mode allow-all (becomes 1.999 in default tier)
 
+# ask_user tool must always require user interaction, even in YOLO mode.
+# This prevents auto-approving questions with empty answers.
+# This rule is listed first with the same priority as the catch-all to ensure it takes precedence
+# for the ask_user tool specifically.
+[[rule]]
+toolName = "ask_user"
+decision = "ask_user"
+priority = 999
+modes = ["yolo"]
+
+# Catch-all: Allow everything else in YOLO mode.
 [[rule]]
 decision = "allow"
 priority = 999
