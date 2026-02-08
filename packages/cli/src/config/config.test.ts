@@ -1147,7 +1147,7 @@ describe('Approval mode tool exclusion logic', () => {
     expect(excludedTools).toContain(ASK_USER_TOOL_NAME);
   });
 
-  it('should exclude only ask_user in non-interactive mode with yolo approval mode', async () => {
+  it('should not exclude ask_user in non-interactive mode with yolo approval mode', async () => {
     process.argv = [
       'node',
       'script.js',
@@ -1165,7 +1165,7 @@ describe('Approval mode tool exclusion logic', () => {
     expect(excludedTools).not.toContain(SHELL_TOOL_NAME);
     expect(excludedTools).not.toContain(EDIT_TOOL_NAME);
     expect(excludedTools).not.toContain(WRITE_FILE_TOOL_NAME);
-    expect(excludedTools).toContain(ASK_USER_TOOL_NAME);
+    expect(excludedTools).not.toContain(ASK_USER_TOOL_NAME);
   });
 
   it('should exclude all interactive tools in non-interactive mode with plan approval mode', async () => {
@@ -1193,7 +1193,7 @@ describe('Approval mode tool exclusion logic', () => {
     expect(excludedTools).toContain(ASK_USER_TOOL_NAME);
   });
 
-  it('should exclude only ask_user in non-interactive mode with legacy yolo flag', async () => {
+  it('should not exclude ask_user in non-interactive mode with legacy yolo flag', async () => {
     process.argv = ['node', 'script.js', '--yolo', '-p', 'test'];
     const argv = await parseArguments(createTestMergedSettings());
     const settings = createTestMergedSettings();
@@ -1204,7 +1204,7 @@ describe('Approval mode tool exclusion logic', () => {
     expect(excludedTools).not.toContain(SHELL_TOOL_NAME);
     expect(excludedTools).not.toContain(EDIT_TOOL_NAME);
     expect(excludedTools).not.toContain(WRITE_FILE_TOOL_NAME);
-    expect(excludedTools).toContain(ASK_USER_TOOL_NAME);
+    expect(excludedTools).not.toContain(ASK_USER_TOOL_NAME);
   });
 
   it('should not exclude interactive tools in interactive mode regardless of approval mode', async () => {
@@ -2026,7 +2026,7 @@ describe('loadCliConfig tool exclusions', () => {
     expect(config.getExcludeTools()).toContain('ask_user');
   });
 
-  it('should exclude only ask_user in non-interactive mode with YOLO', async () => {
+  it('should not exclude ask_user in non-interactive mode with YOLO', async () => {
     process.stdin.isTTY = false;
     process.argv = ['node', 'script.js', '-p', 'test', '--yolo'];
     const argv = await parseArguments(createTestMergedSettings());
@@ -2038,7 +2038,7 @@ describe('loadCliConfig tool exclusions', () => {
     expect(config.getExcludeTools()).not.toContain('run_shell_command');
     expect(config.getExcludeTools()).not.toContain('replace');
     expect(config.getExcludeTools()).not.toContain('write_file');
-    expect(config.getExcludeTools()).toContain('ask_user');
+    expect(config.getExcludeTools()).not.toContain('ask_user');
   });
 
   it('should not exclude shell tool in non-interactive mode when --allowed-tools="ShellTool" is set', async () => {

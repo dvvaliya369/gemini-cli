@@ -600,9 +600,12 @@ export async function loadCliConfig(
   // In non-interactive mode, exclude tools that require a prompt.
   const extraExcludes: string[] = [];
   if (!interactive) {
-    // ask_user requires user interaction and must be excluded in all
-    // non-interactive modes, regardless of the approval mode.
-    extraExcludes.push(ASK_USER_TOOL_NAME);
+    // ask_user requires user interaction and must be excluded in non-interactive modes,
+    // EXCEPT in YOLO mode where it can be auto-approved with empty answers to allow
+    // autonomous operation while still permitting explicit question attempts.
+    if (approvalMode !== ApprovalMode.YOLO) {
+      extraExcludes.push(ASK_USER_TOOL_NAME);
+    }
 
     const defaultExcludes = [
       SHELL_TOOL_NAME,
