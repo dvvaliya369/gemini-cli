@@ -2005,6 +2005,28 @@ describe('useGeminiStream', () => {
       expect(mockOnConfirmAwaiting).toHaveBeenCalledTimes(1);
       expect(mockOnConfirmExecuting).not.toHaveBeenCalled();
     });
+
+    it('should not auto-approve ask_user tool calls when switching to YOLO mode', async () => {
+      const mockOnConfirmAskUser = vi.fn().mockResolvedValue(undefined);
+      const mockOnConfirmReplace = vi.fn().mockResolvedValue(undefined);
+
+      const awaitingApprovalToolCalls: TrackedToolCall[] = [
+        createMockToolCall('replace', 'call1', 'edit', mockOnConfirmReplace),
+        createMockToolCall('ask_user', 'call2', 'info', mockOnConfirmAskUser),
+      ];
+
+      const { result } = renderTestHook(awaitingApprovalToolCalls);
+
+      await act(async () => {
+        await result.current.handleApprovalModeChange(ApprovalMode.YOLO);
+      });
+
+      // replace should be auto-approved, ask_user should NOT
+      expect(mockOnConfirmReplace).toHaveBeenCalledWith(
+        ToolConfirmationOutcome.ProceedOnce,
+      );
+      expect(mockOnConfirmAskUser).not.toHaveBeenCalled();
+    });
   });
 
   describe('handleFinishedEvent', () => {

@@ -45,6 +45,7 @@ import {
 import { ToolExecutor } from '../scheduler/tool-executor.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import { getPolicyDenialError } from '../scheduler/policy.js';
+import { ASK_USER_TOOL_NAME } from '../tools/tool-names.js';
 
 export type {
   ToolCall,
@@ -616,14 +617,23 @@ export class CoreToolScheduler {
           return;
         }
 
-        if (decision === PolicyDecision.ALLOW) {
+        // The ask_user tool requires user interaction to function — it
+        // collects answers via the confirmation dialog.  Even when the
+        // policy says ALLOW (e.g. YOLO mode), we must go through the
+        // confirmation flow so the dialog is shown.
+        const needsConfirmation =
+          decision === PolicyDecision.ASK_USER ||
+          (decision === PolicyDecision.ALLOW &&
+            reqInfo.name === ASK_USER_TOOL_NAME);
+
+        if (!needsConfirmation) {
           this.setToolCallOutcome(
             reqInfo.callId,
             ToolConfirmationOutcome.ProceedAlways,
           );
           this.setStatusInternal(reqInfo.callId, 'scheduled', signal);
         } else {
-          // PolicyDecision.ASK_USER
+          // PolicyDecision.ASK_USER (or ask_user tool in YOLO mode)
 
           // We need confirmation details to show to the user
           const confirmationDetails =

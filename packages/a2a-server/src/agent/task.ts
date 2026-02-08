@@ -28,6 +28,7 @@ import {
   type UserTierId,
   type AnsiOutput,
   EDIT_TOOL_NAMES,
+  ASK_USER_TOOL_NAME,
   processRestorableToolCalls,
 } from '@google/gemini-cli-core';
 import type { RequestContext } from '@a2a-js/sdk/server';
@@ -411,6 +412,11 @@ export class Task {
       );
       toolCalls.forEach((tc: ToolCall) => {
         if (tc.status === 'awaiting_approval' && tc.confirmationDetails) {
+          // Never auto-approve ask_user — it requires real user interaction
+          // to collect answers, even in YOLO / autoExecute mode.
+          if (tc.request.name === ASK_USER_TOOL_NAME) {
+            return;
+          }
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           (tc.confirmationDetails as ToolCallConfirmationDetails).onConfirm(
             ToolConfirmationOutcome.ProceedOnce,

@@ -1017,6 +1017,91 @@ describe('Scheduler (Orchestrator)', () => {
       // Since we mock state manager, we just verify the flow passed the details.
       // In a real integration, StateManager.updateStatus would merge these.
     });
+
+    it('should route ask_user through resolveConfirmation even when policy returns ALLOW (YOLO mode)', async () => {
+      // Simulate YOLO mode: policy returns ALLOW for ask_user
+      vi.mocked(checkPolicy).mockResolvedValue({
+        decision: PolicyDecision.ALLOW,
+        rule: undefined,
+      });
+
+      const askUserReq: ToolCallRequestInfo = {
+        callId: 'call-ask',
+        name: 'ask_user',
+        args: { questions: [{ question: 'Pick one?', header: 'Choice' }] },
+        isClientInitiated: false,
+        prompt_id: 'prompt-1',
+        schedulerId: ROOT_SCHEDULER_ID,
+        parentCallId: undefined,
+      };
+
+      const askUserTool = {
+        name: 'ask_user',
+        build: vi.fn().mockReturnValue(mockInvocation),
+      } as unknown as AnyDeclarativeTool;
+
+      vi.mocked(mockToolRegistry.getTool).mockReturnValue(askUserTool);
+
+      const askUserValidatingCall: ValidatingToolCall = {
+        status: 'validating',
+        request: askUserReq,
+        tool: askUserTool,
+        invocation: mockInvocation as unknown as AnyToolInvocation,
+        schedulerId: ROOT_SCHEDULER_ID,
+      };
+
+      vi.mocked(mockStateManager.dequeue).mockReturnValue(
+        askUserValidatingCall,
+      );
+      Object.defineProperty(mockStateManager, 'firstActiveCall', {
+        get: vi.fn().mockReturnValue(askUserValidatingCall),
+        configurable: true,
+      });
+
+      vi.mocked(resolveConfirmation).mockResolvedValue({
+        outcome: ToolConfirmationOutcome.ProceedOnce,
+        lastDetails: {
+          type: 'ask_user' as const,
+          title: 'Ask User',
+          questions: [
+            {
+              question: 'Pick one?',
+              header: 'Choice',
+            },
+          ],
+        },
+      });
+
+      mockExecutor.execute.mockResolvedValue({
+        status: 'success',
+      } as unknown as SuccessfulToolCall);
+
+      await scheduler.schedule(askUserReq, signal);
+
+      // resolveConfirmation MUST be called even though policy returned ALLOW
+      expect(resolveConfirmation).toHaveBeenCalledTimes(1);
+      expect(mockExecutor.execute).toHaveBeenCalled();
+    });
+
+    it('should NOT route non-ask_user tools through resolveConfirmation when policy returns ALLOW', async () => {
+      vi.mocked(checkPolicy).mockResolvedValue({
+        decision: PolicyDecision.ALLOW,
+        rule: undefined,
+      });
+
+      mockExecutor.execute.mockResolvedValue({
+        status: 'success',
+      } as unknown as SuccessfulToolCall);
+
+      await scheduler.schedule(req1, signal);
+
+      // resolveConfirmation should NOT be called for regular tools with ALLOW
+      expect(resolveConfirmation).not.toHaveBeenCalled();
+      expect(mockStateManager.setOutcome).toHaveBeenCalledWith(
+        'call-1',
+        ToolConfirmationOutcome.ProceedOnce,
+      );
+    });
   });
 
   describe('Phase 4: Execution Outcomes', () => {

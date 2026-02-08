@@ -27,6 +27,7 @@ import {
   type AnyDeclarativeTool,
 } from '../tools/tools.js';
 import { getToolSuggestion } from '../utils/tool-utils.js';
+import { ASK_USER_TOOL_NAME } from '../tools/tool-names.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
 import { logToolCall } from '../telemetry/loggers.js';
 import { ToolCallEvent } from '../telemetry/types.js';
@@ -432,7 +433,16 @@ export class Scheduler {
     let outcome = ToolConfirmationOutcome.ProceedOnce;
     let lastDetails: SerializableConfirmationDetails | undefined;
 
-    if (decision === PolicyDecision.ASK_USER) {
+    // The ask_user tool requires user interaction to function — it collects
+    // answers via the confirmation dialog.  Even when the policy says ALLOW
+    // (e.g. YOLO mode), we must go through the confirmation flow so the
+    // dialog is shown and the user can respond.
+    const needsConfirmation =
+      decision === PolicyDecision.ASK_USER ||
+      (decision === PolicyDecision.ALLOW &&
+        toolCall.request.name === ASK_USER_TOOL_NAME);
+
+    if (needsConfirmation) {
       const result = await resolveConfirmation(toolCall, signal, {
         config: this.config,
         messageBus: this.messageBus,

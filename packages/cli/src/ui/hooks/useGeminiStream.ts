@@ -1370,6 +1370,12 @@ export const useGeminiStream = (
           );
         }
 
+        // Never auto-approve ask_user — it requires real user interaction
+        // to collect answers, even in YOLO mode.
+        awaitingApprovalCalls = awaitingApprovalCalls.filter(
+          (call) => call.request.name !== ASK_USER_TOOL_NAME,
+        );
+
         // Process pending tool calls sequentially to reduce UI chaos
         for (const call of awaitingApprovalCalls) {
           if (
