@@ -1763,11 +1763,13 @@ describe('useGeminiStream', () => {
   });
 
   describe('handleApprovalModeChange', () => {
-    it('should auto-approve all pending tool calls when switching to YOLO mode', async () => {
+    it('should auto-approve all pending tool calls except ask_user when switching to YOLO mode', async () => {
       const mockOnConfirm = vi.fn().mockResolvedValue(undefined);
+      const mockOnConfirmAskUser = vi.fn().mockResolvedValue(undefined);
       const awaitingApprovalToolCalls: TrackedToolCall[] = [
         createMockToolCall('replace', 'call1', 'edit', mockOnConfirm),
         createMockToolCall('read_file', 'call2', 'info', mockOnConfirm),
+        createMockToolCall('ask_user', 'call3', 'info', mockOnConfirmAskUser),
       ];
 
       const { result } = renderTestHook(awaitingApprovalToolCalls);
@@ -1776,11 +1778,14 @@ describe('useGeminiStream', () => {
         await result.current.handleApprovalModeChange(ApprovalMode.YOLO);
       });
 
-      // Both tool calls should be auto-approved
+      // replace and read_file should be auto-approved
       expect(mockOnConfirm).toHaveBeenCalledTimes(2);
       expect(mockOnConfirm).toHaveBeenCalledWith(
         ToolConfirmationOutcome.ProceedOnce,
       );
+
+      // ask_user should NOT be auto-approved
+      expect(mockOnConfirmAskUser).not.toHaveBeenCalled();
     });
 
     it('should only auto-approve edit tools when switching to AUTO_EDIT mode', async () => {
