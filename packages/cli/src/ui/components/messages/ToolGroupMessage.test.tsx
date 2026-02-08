@@ -71,7 +71,6 @@ describe('<ToolGroupMessage />', () => {
             type: 'info',
             title: 'Confirm tool',
             prompt: 'Do you want to proceed?',
-            onConfirm: vi.fn(),
           },
         }),
       ];
