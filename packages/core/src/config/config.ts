@@ -1398,9 +1398,8 @@ export class Config {
     if (this.experimentalJitContext && this.contextManager) {
       await this.contextManager.refresh();
     } else {
-      const { refreshServerHierarchicalMemory } = await import(
-        '../utils/memoryDiscovery.js'
-      );
+      const { refreshServerHierarchicalMemory } =
+        await import('../utils/memoryDiscovery.js');
       await refreshServerHierarchicalMemory(this);
     }
     if (this.geminiClient?.isInitialized()) {
@@ -2197,7 +2196,7 @@ export class Config {
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
-    registerCoreTool(AskUserTool);
+    registerCoreTool(AskUserTool, this);
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool);
     }

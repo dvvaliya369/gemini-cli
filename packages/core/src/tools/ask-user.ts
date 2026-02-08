@@ -16,6 +16,8 @@ import {
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { QuestionType, type Question } from '../confirmation-bus/types.js';
 import { ASK_USER_TOOL_NAME, ASK_USER_DISPLAY_NAME } from './tool-names.js';
+import { ApprovalMode } from '../policy/types.js';
+import type { Config } from '../config/config.js';
 
 export interface AskUserParams {
   questions: Question[];
@@ -25,7 +27,10 @@ export class AskUserTool extends BaseDeclarativeTool<
   AskUserParams,
   ToolResult
 > {
-  constructor(messageBus: MessageBus) {
+  constructor(
+    private readonly config: Config,
+    messageBus: MessageBus,
+  ) {
     super(
       ASK_USER_TOOL_NAME,
       ASK_USER_DISPLAY_NAME,
@@ -152,7 +157,13 @@ export class AskUserTool extends BaseDeclarativeTool<
     toolName: string,
     toolDisplayName: string,
   ): AskUserInvocation {
-    return new AskUserInvocation(params, messageBus, toolName, toolDisplayName);
+    return new AskUserInvocation(
+      params,
+      messageBus,
+      toolName,
+      toolDisplayName,
+      this.config,
+    );
   }
 }
 
@@ -163,9 +174,27 @@ export class AskUserInvocation extends BaseToolInvocation<
   private confirmationOutcome: ToolConfirmationOutcome | null = null;
   private userAnswers: { [questionIndex: string]: string } = {};
 
+  constructor(
+    params: AskUserParams,
+    messageBus: MessageBus,
+    toolName?: string,
+    toolDisplayName?: string,
+    private readonly config?: Config,
+  ) {
+    super(params, messageBus, toolName, toolDisplayName);
+  }
+
   override async shouldConfirmExecute(
     _abortSignal: AbortSignal,
   ): Promise<ToolAskUserConfirmationDetails | false> {
+    // Check if we're in YOLO mode
+    if (this.config?.getApprovalMode() === ApprovalMode.YOLO) {
+      // In YOLO mode, generate intelligent default answers and skip confirmation
+      this.userAnswers = this.generateDefaultAnswers();
+      this.confirmationOutcome = ToolConfirmationOutcome.ProceedOnce;
+      return false;
+    }
+
     const normalizedQuestions = this.params.questions.map((q) => ({
       ...q,
       type: q.type ?? QuestionType.CHOICE,
@@ -187,6 +216,65 @@ export class AskUserInvocation extends BaseToolInvocation<
     };
   }
 
+  /**
+   * Generates intelligent default answers for questions when in YOLO mode.
+   * This provides sensible defaults instead of empty responses.
+   */
+  private generateDefaultAnswers(): { [questionIndex: string]: string } {
+    const answers: { [questionIndex: string]: string } = {};
+
+    this.params.questions.forEach((question, index) => {
+      const questionType = question.type ?? QuestionType.CHOICE;
+
+      switch (questionType) {
+        case QuestionType.YESNO:
+          // Default to "Yes" for yes/no questions in YOLO mode
+          answers[index.toString()] = 'Yes';
+          break;
+
+        case QuestionType.CHOICE:
+          // Select the first option for choice questions
+          if (question.options && question.options.length > 0) {
+            answers[index.toString()] = question.options[0].label;
+          } else {
+            answers[index.toString()] = 'First option';
+          }
+          break;
+
+        case QuestionType.TEXT:
+          // Provide a generic helpful response for text questions
+          if (question.header) {
+            switch (question.header.toLowerCase()) {
+              case 'name':
+              case 'title':
+                answers[index.toString()] = 'Default';
+                break;
+              case 'description':
+                answers[index.toString()] = 'Generated in YOLO mode';
+                break;
+              case 'version':
+                answers[index.toString()] = '1.0.0';
+                break;
+              case 'author':
+                answers[index.toString()] = 'User';
+                break;
+              default:
+                answers[index.toString()] = 'Auto-selected in YOLO mode';
+            }
+          } else {
+            answers[index.toString()] = 'Auto-selected in YOLO mode';
+          }
+          break;
+
+        default:
+          answers[index.toString()] = 'Auto-selected in YOLO mode';
+          break;
+      }
+    });
+
+    return answers;
+  }
+
   getDescription(): string {
     return `Asking user: ${this.params.questions.map((q) => q.question).join(', ')}`;
   }
@@ -202,8 +290,12 @@ export class AskUserInvocation extends BaseToolInvocation<
     const answerEntries = Object.entries(this.userAnswers);
     const hasAnswers = answerEntries.length > 0;
 
+    // Check if we're in YOLO mode and generated default answers
+    const isYoloMode = this.config?.getApprovalMode() === ApprovalMode.YOLO;
+    const hasDefaultAnswers = isYoloMode && hasAnswers;
+
     const returnDisplay = hasAnswers
-      ? `**User answered:**\n${answerEntries
+      ? `**${hasDefaultAnswers ? 'YOLO mode auto-answered:' : 'User answered:'}**\n${answerEntries
           .map(([index, answer]) => {
             const question = this.params.questions[parseInt(index, 10)];
             const category = question?.header ?? `Q${index}`;
@@ -213,7 +305,11 @@ export class AskUserInvocation extends BaseToolInvocation<
       : 'User submitted without answering questions.';
 
     return {
-      llmContent: JSON.stringify({ answers: this.userAnswers }),
+      llmContent: JSON.stringify({
+        answers: this.userAnswers,
+        yoloMode: isYoloMode,
+        autoGenerated: hasDefaultAnswers,
+      }),
       returnDisplay,
     };
   }
