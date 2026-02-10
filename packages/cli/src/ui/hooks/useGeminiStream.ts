@@ -1370,6 +1370,14 @@ export const useGeminiStream = (
           );
         }
 
+        // For YOLO mode, exclude ask_user tool from auto-approval
+        // to allow the agent to explicitly ask questions without auto-submitting empty answers
+        if (newApprovalMode === ApprovalMode.YOLO) {
+          awaitingApprovalCalls = awaitingApprovalCalls.filter(
+            (call) => call.request.name !== ASK_USER_TOOL_NAME,
+          );
+        }
+
         // Process pending tool calls sequentially to reduce UI chaos
         for (const call of awaitingApprovalCalls) {
           if (
