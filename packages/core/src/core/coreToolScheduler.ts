@@ -45,6 +45,7 @@ import {
 import { ToolExecutor } from '../scheduler/tool-executor.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import { getPolicyDenialError } from '../scheduler/policy.js';
+import { ASK_USER_TOOL_NAME } from '../tools/tool-names.js';
 
 export type {
   ToolCall,
@@ -616,14 +617,18 @@ export class CoreToolScheduler {
           return;
         }
 
-        if (decision === PolicyDecision.ALLOW) {
+        // ask_user always requires user interaction to collect answers, even
+        // when the policy auto-approves (e.g. YOLO mode).
+        const isAskUser = toolCall.request.name === ASK_USER_TOOL_NAME;
+
+        if (decision === PolicyDecision.ALLOW && !isAskUser) {
           this.setToolCallOutcome(
             reqInfo.callId,
             ToolConfirmationOutcome.ProceedAlways,
           );
           this.setStatusInternal(reqInfo.callId, 'scheduled', signal);
         } else {
-          // PolicyDecision.ASK_USER
+          // PolicyDecision.ASK_USER (or ask_user tool that needs interaction)
 
           // We need confirmation details to show to the user
           const confirmationDetails =

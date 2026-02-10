@@ -29,6 +29,7 @@ import {
   type AnsiOutput,
   EDIT_TOOL_NAMES,
   processRestorableToolCalls,
+  ASK_USER_TOOL_NAME,
 } from '@google/gemini-cli-core';
 import type { RequestContext } from '@a2a-js/sdk/server';
 import { type ExecutionEventBus } from '@a2a-js/sdk/server';
@@ -411,6 +412,11 @@ export class Task {
       );
       toolCalls.forEach((tc: ToolCall) => {
         if (tc.status === 'awaiting_approval' && tc.confirmationDetails) {
+          // ask_user requires user interaction to collect answers;
+          // auto-approving it would submit empty answers.
+          if (tc.request.name === ASK_USER_TOOL_NAME) {
+            return;
+          }
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           (tc.confirmationDetails as ToolCallConfirmationDetails).onConfirm(
             ToolConfirmationOutcome.ProceedOnce,

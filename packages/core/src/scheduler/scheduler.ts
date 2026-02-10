@@ -27,6 +27,7 @@ import {
   type AnyDeclarativeTool,
 } from '../tools/tools.js';
 import { getToolSuggestion } from '../utils/tool-utils.js';
+import { ASK_USER_TOOL_NAME } from '../tools/tool-names.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
 import { logToolCall } from '../telemetry/loggers.js';
 import { ToolCallEvent } from '../telemetry/types.js';
@@ -432,7 +433,14 @@ export class Scheduler {
     let outcome = ToolConfirmationOutcome.ProceedOnce;
     let lastDetails: SerializableConfirmationDetails | undefined;
 
-    if (decision === PolicyDecision.ASK_USER) {
+    // ask_user always requires user interaction to collect answers, even when
+    // the policy auto-approves (e.g. YOLO mode). Without this, the tool would
+    // execute with empty answers.
+    const needsConfirmation =
+      decision === PolicyDecision.ASK_USER ||
+      toolCall.request.name === ASK_USER_TOOL_NAME;
+
+    if (needsConfirmation) {
       const result = await resolveConfirmation(toolCall, signal, {
         config: this.config,
         messageBus: this.messageBus,
