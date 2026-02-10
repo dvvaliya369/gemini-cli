@@ -1370,6 +1370,11 @@ export const useGeminiStream = (
           );
         }
 
+        // Exclude ask_user tool from auto-approval to avoid submitting empty answers
+        awaitingApprovalCalls = awaitingApprovalCalls.filter(
+          (call) => call.request.name !== ASK_USER_TOOL_NAME,
+        );
+
         // Process pending tool calls sequentially to reduce UI chaos
         for (const call of awaitingApprovalCalls) {
           if (
