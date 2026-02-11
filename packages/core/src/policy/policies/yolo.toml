@@ -25,6 +25,14 @@
 #   50: Read-only tools (becomes 1.050 in default tier)
 #   999: YOLO mode allow-all (becomes 1.999 in default tier)
 
+# Ask user tool always requires confirmation, even in YOLO mode
+# This prevents auto-approval from submitting empty answers
+[[rule]]
+decision = "ask_user"
+priority = 1000
+modes = ["yolo"]
+toolName = "AskUser"
+
 [[rule]]
 decision = "allow"
 priority = 999
