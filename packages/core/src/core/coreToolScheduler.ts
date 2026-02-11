@@ -45,6 +45,7 @@ import {
 import { ToolExecutor } from '../scheduler/tool-executor.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import { getPolicyDenialError } from '../scheduler/policy.js';
+import { ASK_USER_TOOL_NAME } from '../tools/tool-names.js';
 
 export type {
   ToolCall,
@@ -617,11 +618,56 @@ export class CoreToolScheduler {
         }
 
         if (decision === PolicyDecision.ALLOW) {
-          this.setToolCallOutcome(
-            reqInfo.callId,
-            ToolConfirmationOutcome.ProceedAlways,
-          );
-          this.setStatusInternal(reqInfo.callId, 'scheduled', signal);
+          // ask_user requires explicit user interaction even in YOLO mode.
+          // Without this, YOLO auto-approves the dialog with empty answers.
+          if (toolCall.request.name === ASK_USER_TOOL_NAME) {
+            const confirmationDetails =
+              await invocation.shouldConfirmExecute(signal);
+
+            if (confirmationDetails) {
+              if (!this.config.isInteractive()) {
+                throw new Error(
+                  `Tool execution for "${
+                    toolCall.tool.displayName || toolCall.tool.name
+                  }" requires user interaction, which is not supported in non-interactive mode.`,
+                );
+              }
+
+              const originalOnConfirm = confirmationDetails.onConfirm;
+              const wrappedConfirmationDetails: ToolCallConfirmationDetails = {
+                ...confirmationDetails,
+                onConfirm: (
+                  outcome: ToolConfirmationOutcome,
+                  payload?: ToolConfirmationPayload,
+                ) =>
+                  this.handleConfirmationResponse(
+                    reqInfo.callId,
+                    originalOnConfirm,
+                    outcome,
+                    signal,
+                    payload,
+                  ),
+              };
+              this.setStatusInternal(
+                reqInfo.callId,
+                'awaiting_approval',
+                signal,
+                wrappedConfirmationDetails,
+              );
+            } else {
+              this.setToolCallOutcome(
+                reqInfo.callId,
+                ToolConfirmationOutcome.ProceedAlways,
+              );
+              this.setStatusInternal(reqInfo.callId, 'scheduled', signal);
+            }
+          } else {
+            this.setToolCallOutcome(
+              reqInfo.callId,
+              ToolConfirmationOutcome.ProceedAlways,
+            );
+            this.setStatusInternal(reqInfo.callId, 'scheduled', signal);
+          }
         } else {
           // PolicyDecision.ASK_USER
 

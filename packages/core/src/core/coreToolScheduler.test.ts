@@ -1013,6 +1013,114 @@ describe('CoreToolScheduler YOLO mode', () => {
       expect(completedCall.response.resultDisplay).toBe('Tool executed');
     }
   });
+
+  it('should still require user interaction for ask_user tool in YOLO mode', async () => {
+    // Arrange
+    const shouldConfirmExecuteFn = vi.fn().mockResolvedValue({
+      type: 'ask_user' as const,
+      title: 'Ask User',
+      questions: [
+        {
+          question: 'Which framework?',
+          header: 'Framework',
+          type: 'choice',
+          options: [
+            { label: 'React', description: 'A JS library' },
+            { label: 'Vue', description: 'A JS framework' },
+          ],
+        },
+      ],
+      onConfirm: async () => {},
+    });
+    const executeFn = vi.fn().mockResolvedValue({
+      llmContent: 'User answered',
+      returnDisplay: 'User answered',
+    });
+    const mockTool = new MockTool({
+      name: 'ask_user',
+      displayName: 'Ask User',
+      execute: executeFn,
+      shouldConfirmExecute: shouldConfirmExecuteFn,
+    });
+    const declarativeTool = mockTool;
+
+    const mockToolRegistry = {
+      getTool: () => declarativeTool,
+      getToolByName: () => declarativeTool,
+      getFunctionDeclarations: () => [],
+      tools: new Map(),
+      discovery: {},
+      registerTool: () => {},
+      getToolByDisplayName: () => declarativeTool,
+      getTools: () => [],
+      discoverTools: async () => {},
+      getAllTools: () => [],
+      getToolsByServer: () => [],
+    } as unknown as ToolRegistry;
+
+    const onAllToolCallsComplete = vi.fn();
+    const onToolCallsUpdate = vi.fn();
+
+    // Configure the scheduler for YOLO mode but interactive.
+    const mockConfig = createMockConfig({
+      getToolRegistry: () => mockToolRegistry,
+      getApprovalMode: () => ApprovalMode.YOLO,
+      isInteractive: () => true,
+    });
+    const mockMessageBus = createMockMessageBus();
+    mockConfig.getMessageBus = vi.fn().mockReturnValue(mockMessageBus);
+    mockConfig.getEnableHooks = vi.fn().mockReturnValue(false);
+    mockConfig.getHookSystem = vi
+      .fn()
+      .mockReturnValue(new HookSystem(mockConfig));
+
+    const scheduler = new CoreToolScheduler({
+      config: mockConfig,
+      onAllToolCallsComplete,
+      onToolCallsUpdate,
+      getPreferredEditor: () => 'vscode',
+    });
+
+    const abortController = new AbortController();
+    const request = {
+      callId: '1',
+      name: 'ask_user',
+      args: {
+        questions: [
+          {
+            question: 'Which framework?',
+            header: 'Framework',
+            type: 'choice',
+            options: [
+              { label: 'React', description: 'A JS library' },
+              { label: 'Vue', description: 'A JS framework' },
+            ],
+          },
+        ],
+      },
+      isClientInitiated: false,
+      prompt_id: 'prompt-id-yolo-ask-user',
+    };
+
+    // Act
+    await scheduler.schedule([request], abortController.signal);
+
+    // Wait for the tool to reach awaiting_approval status
+    const waitingCall = await waitForStatus(
+      onToolCallsUpdate,
+      'awaiting_approval',
+    );
+
+    // Assert
+    // 1. The tool entered 'awaiting_approval' despite YOLO mode.
+    expect(waitingCall.status).toBe('awaiting_approval');
+
+    // 2. shouldConfirmExecute was called to get the question dialog.
+    expect(shouldConfirmExecuteFn).toHaveBeenCalled();
+
+    // 3. The tool was NOT auto-executed (execute should not have been called yet).
+    expect(executeFn).not.toHaveBeenCalled();
+  });
 });
 
 describe('CoreToolScheduler request queueing', () => {

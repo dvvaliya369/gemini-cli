@@ -1363,6 +1363,11 @@ export const useGeminiStream = (
             call.status === 'awaiting_approval',
         );
 
+        // Never auto-approve ask_user — it requires explicit user interaction
+        awaitingApprovalCalls = awaitingApprovalCalls.filter(
+          (call) => call.request.name !== ASK_USER_TOOL_NAME,
+        );
+
         // For AUTO_EDIT mode, only approve edit tools (replace, write_file)
         if (newApprovalMode === ApprovalMode.AUTO_EDIT) {
           awaitingApprovalCalls = awaitingApprovalCalls.filter((call) =>
