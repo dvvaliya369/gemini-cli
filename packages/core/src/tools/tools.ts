@@ -136,14 +136,17 @@ export abstract class BaseToolInvocation<
 
   /**
    * Helper method to publish a policy update when user selects
-   * ProceedAlways or ProceedAlwaysAndSave.
+   * ProceedAlways, ProceedAlwaysAndSave, ProceedAlwaysTool, or
+   * ProceedAlwaysServer.
    */
   protected async publishPolicyUpdate(
     outcome: ToolConfirmationOutcome,
   ): Promise<void> {
     if (
       outcome === ToolConfirmationOutcome.ProceedAlways ||
-      outcome === ToolConfirmationOutcome.ProceedAlwaysAndSave
+      outcome === ToolConfirmationOutcome.ProceedAlwaysAndSave ||
+      outcome === ToolConfirmationOutcome.ProceedAlwaysTool ||
+      outcome === ToolConfirmationOutcome.ProceedAlwaysServer
     ) {
       if (this._toolName) {
         const options = this.getPolicyUpdateOptions(outcome);
